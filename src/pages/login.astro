@@ -1,0 +1,87 @@
+---
+import AuthLayout from '../layouts/AuthLayout.astro';
+import Button from '../components/ui/Button.astro';
+import { login } from '../services/auth';
+import { ApiError } from '../services/api';
+import { getToken, setTokenCookie } from '../utils/auth';
+
+// ---------------------------------------------------------------------------
+// SSR Auth Flow (frontend-architecture.md §3):
+// 1. Tangkap POST dari form standar di frontmatter ini.
+// 2. Panggil API Golang /auth/login.
+// 3. Simpan JWT ke cookie httpOnly (BUKAN localStorage).
+// ---------------------------------------------------------------------------
+let errorMessage: string | null = null;
+
+// Sudah login? Langsung ke dashboard.
+if (Astro.request.method !== 'POST' && getToken(Astro)) {
+  return Astro.redirect('/dashboard');
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const email = String(form.get('email') ?? '').trim();
+  const password = String(form.get('password') ?? '');
+
+  if (!email || !password) {
+    errorMessage = 'Email dan password wajib diisi.';
+  } else {
+    try {
+      const { token } = await login(email, password);
+      setTokenCookie(Astro, token); // httpOnly + secure + sameSite=lax
+      return Astro.redirect('/dashboard');
+    } catch (err) {
+      errorMessage =
+        err instanceof ApiError ? err.message : 'Terjadi kesalahan, coba lagi sebentar.';
+    }
+  }
+}
+---
+
+<AuthLayout>
+  <form method="POST" action="/login" class="flex flex-col gap-4">
+    {
+      errorMessage && (
+        <div
+          role="alert"
+          class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700"
+        >
+          {errorMessage}
+        </div>
+      )
+    }
+
+    <div class="flex flex-col gap-1.5">
+      <label for="email" class="text-sm font-medium text-slate-700">Email</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        required
+        autocomplete="email"
+        placeholder="nama@email.com"
+        class="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="password" class="text-sm font-medium text-slate-700">Password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        required
+        autocomplete="current-password"
+        placeholder="Minimal 8 karakter"
+        class="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+      />
+    </div>
+
+    <Button type="submit" size="lg" class="mt-2">Masuk</Button>
+  </form>
+
+  <p class="mt-6 text-center text-sm text-slate-500">
+    Belum punya akun? Daftar dulu lewat API
+    <code class="rounded bg-slate-200 px-1.5 py-0.5 text-xs">POST /api/v1/auth/register</code>
+  </p>
+</AuthLayout>

@@ -1,0 +1,94 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import BalanceCard from '../../components/features/BalanceCard.astro';
+import GoalCarousel from '../../components/features/GoalCarousel.astro';
+import TransactionList from '../../components/features/TransactionList.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import { api, ApiError } from '../../services/api';
+import type { SavingGoal, Transaction, Wallet } from '../../services/types';
+import { clearTokenCookie, getToken } from '../../utils/auth';
+
+// ---------------------------------------------------------------------------
+// Route Protection: tanpa cookie token → /login. Token dikirim sebagai
+// Authorization: Bearer <token> saat fetch di server (proxy pattern).
+// ---------------------------------------------------------------------------
+const token = getToken(Astro);
+if (!token) {
+  return Astro.redirect('/login');
+}
+
+let wallets: Wallet[] = [];
+let transactions: Transaction[] = [];
+let goals: SavingGoal[] = [];
+let userName = 'Pengguna Caupocket';
+let loadError: string | null = null;
+
+try {
+  // Ambil profil + saldo + transaksi + goals secara paralel sebelum render.
+  const [user, walletData, trxData, goalData] = await Promise.all([
+    api.me(token), // sekaligus memvalidasi token; 401 → redirect login.
+    api.wallets(token),
+    api.transactions(token, 8),
+    api.goals(token),
+  ]);
+  userName = user.name;
+  wallets = walletData;
+  transactions = trxData;
+  goals = goalData;
+} catch (err) {
+  if (err instanceof ApiError && err.isUnauthorized) {
+    clearTokenCookie(Astro);
+    return Astro.redirect('/login');
+  }
+  loadError = err instanceof ApiError ? err.message : 'Gagal memuat data dashboard.';
+}
+
+const activeGoals = goals.filter((g) => g.status === 'ACTIVE').slice(0, 4);
+
+// Ringkasan arus kas dari daftar transaksi terakhir.
+const incomeTotal = transactions.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0);
+const expenseTotal = transactions.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0);
+---
+
+<DashboardLayout title="Beranda — Caupocket" activePage="home">
+  <BalanceCard wallets={wallets} userName={userName} />
+
+  <div class="px-4 pt-5">
+    {
+      loadError ? (
+        <EmptyState icon="⚠️" title="Tidak dapat memuat data" description={loadError} />
+      ) : (
+        <div class="grid grid-cols-2 gap-3">
+          <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <p class="text-xs font-medium text-slate-500">Pemasukan (terakhir)</p>
+            <p class="mt-1 text-lg font-bold text-emerald-600">
+              +{new Intl.NumberFormat('id-ID').format(incomeTotal)}
+            </p>
+          </div>
+          <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <p class="text-xs font-medium text-slate-500">Pengeluaran (terakhir)</p>
+            <p class="mt-1 text-lg font-bold text-rose-600">
+              -{new Intl.NumberFormat('id-ID').format(expenseTotal)}
+            </p>
+          </div>
+        </div>
+      )
+    }
+  </div>
+
+  {
+    activeGoals.length > 0 && (
+      <section class="pt-6">
+        <div class="mb-3 flex items-center justify-between px-4">
+          <h2 class="text-sm font-semibold text-slate-900">Target Tabungan</h2>
+          <a href="/goals" class="text-xs font-semibold text-indigo-600">
+            Lihat semua
+          </a>
+        </div>
+        <GoalCarousel goals={activeGoals} />
+      </section>
+    )
+  }
+
+  <TransactionList transactions={transactions} />
+</DashboardLayout>

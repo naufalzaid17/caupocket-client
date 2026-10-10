@@ -1,0 +1,134 @@
+---
+import GoalCard from './GoalCard.astro';
+import type { SavingGoal } from '../../services/types';
+
+interface Props {
+  goals: SavingGoal[];
+}
+
+const { goals } = Astro.props;
+const multiple = goals.length > 1;
+---
+
+<!-- Carousel target tabungan: satu kartu aktif di tengah + peek kartu tetangga.
+     Tanpa scrollbar — navigasi via swipe (native), panah, dan dot. -->
+<div class="relative" data-goal-carousel>
+  <div
+    class="hide-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-[11%] py-1"
+    data-track
+    role="region"
+    aria-roledescription="carousel"
+    aria-label="Target tabungan"
+  >
+    {
+      goals.map((goal) => (
+        <div class="w-[78%] flex-none snap-center" data-slide>
+          <GoalCard goal={goal} variant="compact" />
+        </div>
+      ))
+    }
+  </div>
+
+  {
+    multiple && (
+      <>
+        <button
+          type="button"
+          data-prev
+          aria-label="Target sebelumnya"
+          class="press absolute inset-y-0 left-0 my-auto flex size-8 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-600 shadow-md active:scale-95 disabled:opacity-0"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m14 6-6 6 6 6" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          data-next
+          aria-label="Target berikutnya"
+          class="press absolute inset-y-0 right-0 my-auto flex size-8 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-600 shadow-md active:scale-95 disabled:opacity-0"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m10 6 6 6-6 6" />
+          </svg>
+        </button>
+      </>
+    )
+  }
+
+  {
+    multiple && (
+      <div class="mt-2.5 flex justify-center gap-1.5" data-dots>
+        {goals.map((goal, i) => (
+          <button
+            type="button"
+            data-dot
+            aria-label={`Ke target: ${goal.title}`}
+            class:list={[
+              'h-2 rounded-full transition-all',
+              i === 0 ? 'w-4 bg-indigo-600' : 'w-2 bg-slate-300',
+            ]}
+          />
+        ))}
+      </div>
+    )
+  }
+</div>
+
+<script>
+  function initGoalCarousels(): void {
+    document.querySelectorAll<HTMLElement>('[data-goal-carousel]:not([data-ready])').forEach((root) => {
+      root.setAttribute('data-ready', 'true');
+
+      const track = root.querySelector<HTMLElement>('[data-track]');
+      const slides = Array.from(root.querySelectorAll<HTMLElement>('[data-slide]'));
+      const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-dot]'));
+      const prev = root.querySelector<HTMLButtonElement>('[data-prev]');
+      const next = root.querySelector<HTMLButtonElement>('[data-next]');
+      if (!track || slides.length === 0) return;
+
+      // Jarak antar posisi tengah slide (lebar slide + gap).
+      const step = (): number =>
+        slides.length > 1 ? slides[1]!.offsetLeft - slides[0]!.offsetLeft : track!.clientWidth;
+      const maxScroll = (): number => track!.scrollWidth - track!.clientWidth;
+      const activeIndex = (): number => Math.round(track!.scrollLeft / step());
+
+      const render = (): void => {
+        const idx = activeIndex();
+        dots.forEach((dot, i) => {
+          const active = i === idx;
+          dot.classList.toggle('bg-indigo-600', active);
+          dot.classList.toggle('w-4', active);
+          dot.classList.toggle('bg-slate-300', !active);
+          dot.classList.toggle('w-2', !active);
+          dot.setAttribute('aria-current', active ? 'true' : 'false');
+        });
+        if (prev) prev.disabled = track!.scrollLeft <= 2;
+        if (next) next.disabled = track!.scrollLeft >= maxScroll() - 2;
+      };
+
+      let raf = 0;
+      track.addEventListener(
+        'scroll',
+        () => {
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(render);
+        },
+        { passive: true },
+      );
+
+      dots.forEach((dot, i) =>
+        dot.addEventListener('click', () => track!.scrollTo({ left: i * step(), behavior: 'smooth' })),
+      );
+      prev?.addEventListener('click', () => track!.scrollBy({ left: -step(), behavior: 'smooth' }));
+      next?.addEventListener('click', () => track!.scrollBy({ left: step(), behavior: 'smooth' }));
+
+      render();
+    });
+  }
+
+  // astro:page-load menjamin inisialisasi ulang setelah navigasi ClientRouter
+  // (script module di-dedupe sehingga tidak selalu dieksekusi ulang).
+  document.addEventListener('astro:page-load', initGoalCarousels);
+  initGoalCarousels();
+</script>

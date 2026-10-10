@@ -1,0 +1,9 @@
+---
+import { clearTokenCookie } from '../utils/auth';
+
+// Hapus cookie token lalu kembali ke halaman login.
+clearTokenCookie(Astro);
+return Astro.redirect('/login');
+---
+
+<!-- Halaman redirect murni: tidak me-render apa pun. -->

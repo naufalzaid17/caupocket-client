@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Anti-web-quirks: buat web terasa seperti aplikasi native.
+   Referensi: frontend-architecture.md §4.4 Mikro-Interaksi.
+   ============================================================ */
+
+/* Hilangkan kotak biru/abu saat tombol ditekan di layar sentuh. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Cegah efek bounce/pull-to-refresh browser (overscroll). */
+body {
+  overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
+}
+
+/* Aplikasi gaya native: scrollbar dokumen tidak pernah ditampilkan
+   (scroll tetap berfungsi via wheel/swipe/keyboard). */
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+
+/* Matikan seleksi teks (mencegah teks tersorot biru tak sengaja).
+   Input tetap boleh diseleksi agar nyaman diketik. */
+body,
+button,
+a,
+label,
+nav,
+header,
+section,
+li,
+span,
+div {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Hilangkan delay 300ms & double-tap zoom pada elemen interaktif. */
+button,
+a,
+label,
+summary {
+  touch-action: manipulation;
+}
+
+/* Fondasi tampilan mobile app. */
+body {
+  font-family:
+    'Inter',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  background-color: #f1f5f9; /* slate-100 */
+  color: #0f172a; /* slate-900 */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Feedback tekan ala native: dipakai bersama class active:scale-95. */
+.press {
+  transition: transform 120ms ease;
+}
+.press:active {
+  transform: scale(0.95);
+}
+
+/* Slot ikon agar lingkarannya konsisten di semua tempat. */
+.icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  flex: none;
+}
+
+/* Sembunyikan scrollbar pada track carousel (tetap bisa scroll/swipe). */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

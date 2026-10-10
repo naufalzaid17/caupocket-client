@@ -1,0 +1,186 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+import GoalCard from '../components/features/GoalCard.astro';
+import EmptyState from '../components/ui/EmptyState.astro';
+import { api, ApiError } from '../services/api';
+import type { SavingGoal, Wallet } from '../services/types';
+import { clearTokenCookie, getToken } from '../utils/auth';
+
+// Route protection.
+const token = getToken(Astro);
+if (!token) {
+  return Astro.redirect('/login');
+}
+
+let goals: SavingGoal[] = [];
+let wallets: Wallet[] = [];
+let feedback: { kind: 'success' | 'error'; text: string } | null = null;
+
+// ---------------------------------------------------------------------------
+// Penanganan POST (SSR): aksi "create" (target baru) dan "fund" (setoran).
+// Token diambil dari cookie httpOnly — browser tidak pernah melihatnya.
+// ---------------------------------------------------------------------------
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const action = String(form.get('action') ?? '');
+
+  try {
+    if (action === 'create') {
+      const title = String(form.get('title') ?? '').trim();
+      const targetAmount = Number(form.get('target_amount') ?? 0);
+      const targetDate = String(form.get('target_date') ?? '');
+      if (!title || targetAmount <= 0) throw new ApiError('Judul dan target nominal wajib diisi.', 400);
+      await api.createGoal(token, {
+        title,
+        target_amount: Math.round(targetAmount),
+        target_date: targetDate || undefined,
+      });
+      feedback = { kind: 'success', text: `Target "${title}" berhasil dibuat.` };
+    } else if (action === 'fund') {
+      const goalId = String(form.get('goal_id') ?? '');
+      const walletId = String(form.get('wallet_id') ?? '');
+      const amount = Number(form.get('amount') ?? 0);
+      const result = await api.fundGoal(token, goalId, {
+        wallet_id: walletId,
+        amount: Math.round(amount),
+      });
+      feedback = {
+        kind: 'success',
+        text: result.goal.status === 'ACHIEVED'
+          ? `Selamat! Target "${result.goal.title}" tercapai 🎉`
+          : `Setoran ${Math.round(amount).toLocaleString('id-ID')} ke "${result.goal.title}" berhasil.`,
+      };
+    }
+  } catch (err) {
+    if (err instanceof ApiError && err.isUnauthorized) {
+      clearTokenCookie(Astro);
+      return Astro.redirect('/login');
+    }
+    feedback = {
+      kind: 'error',
+      text: err instanceof ApiError ? err.message : 'Terjadi kesalahan, coba lagi.',
+    };
+  }
+}
+
+try {
+  [goals, wallets] = await Promise.all([api.goals(token), api.wallets(token)]);
+} catch (err) {
+  if (err instanceof ApiError && err.isUnauthorized) {
+    clearTokenCookie(Astro);
+    return Astro.redirect('/login');
+  }
+  feedback = { kind: 'error', text: 'Gagal memuat daftar target.' };
+}
+
+const activeGoals = goals.filter((g) => g.status === 'ACTIVE');
+const achievedGoals = goals.filter((g) => g.status === 'ACHIEVED');
+const today = new Date().toISOString().slice(0, 10);
+---
+
+<DashboardLayout title="Target Tabungan — Caupocket" activePage="goals">
+  <header class="px-5 pb-2 pt-8">
+    <h1 class="text-xl font-bold tracking-tight text-slate-900">Vacation Planner</h1>
+    <p class="mt-1 text-sm text-slate-500">Rencanakan dan danai liburan impianmu.</p>
+  </header>
+
+  {
+    feedback && (
+      <div class="px-4 pt-3">
+        <div
+          role="status"
+          class:list={[
+            'rounded-xl border px-4 py-3 text-sm font-medium',
+            feedback.kind === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700',
+          ]}
+        >
+          {feedback.text}
+        </div>
+      </div>
+    )
+  }
+
+  <section class="px-4 pt-5">
+    <details class="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+      <summary
+        class="press flex h-14 cursor-pointer select-none items-center justify-between px-4 font-semibold text-slate-900 outline-none active:scale-95"
+      >
+        Buat Target Baru
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+      </summary>
+      <form method="POST" action="/goals" class="flex flex-col gap-3 border-t border-slate-100 p-4">
+        <input type="hidden" name="action" value="create" />
+        <div class="flex flex-col gap-1.5">
+          <label for="goal-title" class="text-sm font-medium text-slate-700">Judul target</label>
+          <input
+            id="goal-title"
+            name="title"
+            required
+            maxlength="255"
+            placeholder="Liburan ke Bali"
+            class="h-12 w-full rounded-xl border border-slate-200 px-4 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="goal-amount" class="text-sm font-medium text-slate-700">Target nominal (Rp)</label>
+          <input
+            id="goal-amount"
+            name="target_amount"
+            type="number"
+            min="1000"
+            required
+            inputmode="numeric"
+            placeholder="5000000"
+            class="h-12 w-full rounded-xl border border-slate-200 px-4 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="goal-date" class="text-sm font-medium text-slate-700">Target tanggal (opsional)</label>
+          <input
+            id="goal-date"
+            name="target_date"
+            type="date"
+            min={today}
+            class="h-12 w-full rounded-xl border border-slate-200 px-4 text-base text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+          />
+        </div>
+        <button
+          type="submit"
+          class="press h-12 rounded-xl bg-indigo-600 font-semibold text-white shadow-lg shadow-indigo-600/25 active:scale-95"
+        >
+          Simpan Target
+        </button>
+      </form>
+    </details>
+  </section>
+
+  <section class="flex flex-col gap-3 px-4 pt-6">
+    <h2 class="text-sm font-semibold text-slate-900">Sedang Berjalan ({activeGoals.length})</h2>
+    {
+      activeGoals.length === 0 ? (
+        <EmptyState
+          icon="🏝️"
+          title="Belum ada target aktif"
+          description="Buat target pertamamu di atas, lalu setor dana dari dompet utama."
+        />
+      ) : (
+        activeGoals.map((goal) => <GoalCard goal={goal} wallets={wallets} variant="full" />)
+      )
+    }
+  </section>
+
+  {
+    achievedGoals.length > 0 && (
+      <section class="flex flex-col gap-3 px-4 pt-6">
+        <h2 class="text-sm font-semibold text-slate-900">Tercapai ({achievedGoals.length})</h2>
+        {achievedGoals.map((goal) => (
+          <GoalCard goal={goal} wallets={wallets} variant="full" />
+        ))}
+      </section>
+    )
+  }
+</DashboardLayout>

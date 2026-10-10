@@ -1,0 +1,45 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'Masuk — Caupocket' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>{title}</title>
+    <script>
+      import { registerSW } from 'virtual:pwa-register';
+      registerSW({ immediate: true });
+    </script>
+  </head>
+  <body class="min-h-screen bg-slate-100">
+    <main class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-[env(safe-area-inset-bottom)]">
+      <div class="mb-8 flex flex-col items-center gap-3 select-none">
+        <span class="icon-tile size-16 bg-indigo-600 shadow-lg shadow-indigo-600/30">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-9 fill-white">
+            <path
+              d="M12 2C6.48 2 2 6.02 2 11v3a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1H4.57C5.49 5.44 8.42 4 12 4s6.51 1.44 7.43 4H18a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1a3 3 0 0 0 3-3v-3c0-4.98-4.48-9-10-9Zm-1 12h2v2h-2v-2Zm4.25-2.25a2.4 2.4 0 0 1-1.25 2.12V15h-2v-1.5c0-.55.45-1 1-1h.5a.75.75 0 0 0 0-1.5H12v-2h1.5a2.75 2.75 0 0 1 1.75 4.75Z"
+            ></path>
+          </svg>
+        </span>
+        <div class="text-center">
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900">Caupocket</h1>
+          <p class="text-sm text-slate-500">Catat keuangan, wujudkan liburan impian</p>
+        </div>
+      </div>
+
+      <slot />
+    </main>
+  </body>
+</html>

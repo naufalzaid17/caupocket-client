@@ -1,0 +1,79 @@
+---
+import { formatDate, formatRupiah } from '../../utils/formatters';
+import EmptyState from '../ui/EmptyState.astro';
+import type { Transaction } from '../../services/types';
+
+interface Props {
+  transactions: Transaction[];
+  title?: string;
+}
+
+const { transactions, title = 'Transaksi Terakhir' } = Astro.props;
+
+const typeMeta: Record<Transaction['type'], { icon: string; tile: string; sign: string; amount: string }> = {
+  INCOME: {
+    icon: 'M12 4v12m0 0-5-5m5 5 5-5M5 20h14', // panah masuk
+    tile: 'bg-emerald-50 text-emerald-600',
+    sign: '+',
+    amount: 'text-emerald-600',
+  },
+  EXPENSE: {
+    icon: 'M12 20V8m0 0-5 5m5-5 5 5M5 4h14', // panah keluar
+    tile: 'bg-rose-50 text-rose-600',
+    sign: '-',
+    amount: 'text-rose-600',
+  },
+  GOAL_FUNDING: {
+    icon: 'M4 20V10m5.5 10V4m5.5 16v-7M20 20v-11', // grafik progres
+    tile: 'bg-indigo-50 text-indigo-600',
+    sign: '',
+    amount: 'text-indigo-600',
+  },
+};
+---
+
+<section class="px-4 pt-6">
+  <div class="mb-3 flex items-center justify-between">
+    <h2 class="text-sm font-semibold text-slate-900">{title}</h2>
+    <a href="/transactions/new" class="text-xs font-semibold text-indigo-600">+ Catat</a>
+  </div>
+
+  {
+    transactions.length === 0 ? (
+      <EmptyState
+        icon="🧾"
+        title="Belum ada transaksi"
+        description="Tekan tombol + untuk mencatat pemasukan atau pengeluaran pertamamu."
+      />
+    ) : (
+      <ul class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        {transactions.map((trx) => {
+          const meta = typeMeta[trx.type];
+          return (
+            <li class="flex items-center gap-3 px-4 py-3">
+              <span class={`icon-tile size-11 ${meta.tile}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d={meta.icon} />
+                </svg>
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900">
+                  {trx.description || trx.category_name || trx.goal_title || trx.type}
+                </p>
+                <p class="truncate text-xs text-slate-500">
+                  {formatDate(trx.trx_date)}
+                  {trx.category_name ? ` · ${trx.category_name}` : ''}
+                  {trx.goal_title ? ` · ${trx.goal_title}` : ''} · {trx.wallet_name}
+                </p>
+              </div>
+              <p class={`text-sm font-bold ${meta.amount}`}>
+                {meta.sign}
+                {formatRupiah(trx.amount)}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    )
+  }
+</section>

@@ -1,0 +1,52 @@
+---
+import { formatRupiah } from '../../utils/formatters';
+import type { Wallet } from '../../services/types';
+
+interface Props {
+  wallets: Wallet[];
+  userName: string;
+}
+
+const { wallets, userName } = Astro.props;
+const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0);
+const initials = userName
+  .split(' ')
+  .slice(0, 2)
+  .map((part) => part.charAt(0).toUpperCase())
+  .join('');
+---
+
+<section class="rounded-b-3xl bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 px-5 pb-6 pt-8 text-white shadow-lg shadow-indigo-600/20">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="icon-tile size-11 bg-white/15 text-sm font-bold">{initials || '?'}</span>
+      <div>
+        <p class="text-xs text-indigo-100">Total Saldo</p>
+        <p class="text-sm font-semibold">{userName}</p>
+      </div>
+    </div>
+    <a
+      href="/logout"
+      class="press flex size-9 items-center justify-center rounded-full bg-white/15 active:scale-95"
+      aria-label="Keluar"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5" fill="currentColor">
+        <path d="M16 13v-2H7V9h9V7l4 3-4 3ZM10 3h2v2h-2V3Zm0 4h2v2h-2V7Zm0 4h2v2h-2v-2Zm0 4h2v2h-2v-2Zm0 4h2v2h-2v-2Z"></path>
+      </svg>
+    </a>
+  </div>
+
+  <p class="mt-6 text-4xl font-bold tracking-tight">{formatRupiah(totalBalance)}</p>
+
+  {
+    wallets.length > 1 && (
+      <div class="mt-4 flex gap-2 overflow-x-auto">
+        {wallets.map((wallet) => (
+          <span class="flex-none rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium">
+            {wallet.name} · {formatRupiah(wallet.balance)}
+          </span>
+        ))}
+      </div>
+    )
+  }
+</section>

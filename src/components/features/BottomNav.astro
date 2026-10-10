@@ -1,0 +1,87 @@
+---
+interface Props {
+  activePage?: 'home' | 'goals' | 'new' | 'profile';
+}
+
+const { activePage = 'home' } = Astro.props;
+
+const items = [
+  {
+    id: 'home',
+    href: '/dashboard',
+    label: 'Beranda',
+    path: 'M4 13h6V4H4v9Zm.5-8.5h5v7.5h-5V4.5ZM14 20h6v-9h-6v9Zm.5-8.5h5V19h-5v-7.5Z',
+  },
+  {
+    id: 'goals',
+    href: '/goals',
+    label: 'Target',
+    path: 'M12 2 3 7v1.5h18V7L12 2ZM4.5 10v7.5H7V10H4.5Zm4 0v7.5h3V10h-3Zm5 0v7.5h3V10h-3Zm4 0v7.5h2V10h-2ZM3 19.5h18V21H3v-1.5Z',
+  },
+  {
+    id: 'new',
+    href: '/transactions/new',
+    label: 'Catat',
+    path: 'M4 13h6V4H4v9Zm.5-8.5h5v7.5h-5V4.5ZM14 20h6v-9h-6v9Zm.5-8.5h5V19h-5v-7.5Z',
+  },
+  {
+    id: 'profile',
+    href: '/logout',
+    label: 'Keluar',
+    path: 'M16 13v-2H7V9h9V7l4 3-4 3ZM10 3h2v2h-2V3Zm0 4h2v2h-2V7Zm0 4h2v2h-2v-2Zm0 4h2v2h-2v-2Zm0 4h2v2h-2v-2Z',
+  },
+] as const;
+
+// Item FAB di tengah nav (slot ke-3 dari 5) — tombol aksi utama.
+const leftItems = items.filter((i) => i.id === 'home' || i.id === 'goals');
+const rightItems = items.filter((i) => i.id === 'new' || i.id === 'profile');
+---
+
+<!-- Menu bawah: elemen akhir kolom flex app shell (di luar scroll container)
+     sehingga selalu stay di dasar layar. FAB menonjol ke atas dari nav. -->
+<nav
+  class="relative z-50 flex-none border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+>
+  <div class="relative mx-auto grid max-w-md grid-cols-4 px-2 pt-1">
+    {leftItems.map((item) => (
+      <a
+        href={item.href}
+        class:list={[
+          'press flex flex-col items-center gap-0.5 rounded-lg py-2 text-[11px] font-medium active:scale-95',
+          activePage === item.id ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700',
+        ]}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-6" fill="currentColor">
+          <path d={item.path}></path>
+        </svg>
+        {item.label}
+      </a>
+    ))}
+
+    {rightItems.map((item) => (
+      <a
+        href={item.href}
+        class:list={[
+          'press flex flex-col items-center gap-0.5 rounded-lg py-2 text-[11px] font-medium active:scale-95',
+          activePage === item.id ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700',
+        ]}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-6" fill="currentColor">
+          <path d={item.path}></path>
+        </svg>
+        {item.label}
+      </a>
+    ))}
+
+    <!-- Floating Action Button: menonjol ke atas dari bottom nav. -->
+    <a
+      href="/transactions/new"
+      aria-label="Catat transaksi baru"
+      class="press absolute -top-6 left-1/2 flex size-14 -translate-x-1/2 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/40 outline-none ring-4 ring-white transition-transform active:scale-95"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M12 5v14M5 12h14"></path>
+      </svg>
+    </a>
+  </div>
+</nav>

@@ -1,0 +1,30 @@
+---
+// Halaman fallback offline (di-precache service worker).
+export const prerender = true;
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    <title>Offline — Caupocket</title>
+  </head>
+  <body class="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+    <div class="mx-auto flex max-w-md flex-col items-center gap-3 rounded-2xl bg-white p-8 text-center shadow-sm">
+      <span class="text-4xl" aria-hidden="true">📴</span>
+      <h1 class="text-lg font-bold text-slate-900">Kamu sedang offline</h1>
+      <p class="text-sm text-slate-500">
+        Caupocket butuh koneksi internet untuk memuat data terbaru. Halaman yang pernah kamu
+        buka tetap tersedia dari cache.
+      </p>
+      <a
+        href="/dashboard"
+        class="press mt-2 inline-flex h-11 items-center rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white active:scale-95"
+      >
+        Coba Lagi
+      </a>
+    </div>
+  </body>
+</html>

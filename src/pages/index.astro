@@ -1,0 +1,8 @@
+---
+import { getToken } from '../utils/auth';
+
+// Landing page: arahkan ke dashboard bila sudah login, selain itu ke /login.
+return Astro.redirect(getToken(Astro) ? '/dashboard' : '/login');
+---
+
+<!-- Halaman redirect murni: tidak me-render apa pun. -->

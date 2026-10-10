@@ -1,0 +1,29 @@
+---
+interface Props {
+  type?: 'button' | 'submit';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  size?: 'md' | 'lg';
+  class?: string;
+}
+
+const { type = 'submit', variant = 'primary', size = 'md', class: className = '' } = Astro.props;
+
+const variants: Record<string, string> = {
+  primary: 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-700',
+  secondary: 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50',
+  danger: 'bg-rose-600 text-white shadow-lg shadow-rose-600/25 hover:bg-rose-700',
+  ghost: 'bg-transparent text-indigo-600 hover:bg-indigo-50',
+};
+
+const sizes: Record<string, string> = {
+  md: 'h-11 px-4 text-sm',
+  lg: 'h-12 px-5 text-base',
+};
+---
+
+<button
+  type={type}
+  class={`press inline-flex w-full items-center justify-center gap-2 rounded-xl font-semibold outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 active:scale-95 disabled:opacity-60 ${variants[variant]} ${sizes[size]} ${className}`}
+>
+  <slot />
+</button>

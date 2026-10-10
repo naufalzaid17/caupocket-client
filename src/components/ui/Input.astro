@@ -1,0 +1,49 @@
+---
+interface Props {
+  label: string;
+  name: string;
+  type?: 'text' | 'email' | 'password' | 'number' | 'date' | 'tel' | 'url';
+  value?: string;
+  placeholder?: string;
+  required?: boolean;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
+  autocomplete?: string;
+  inputmode?: 'text' | 'numeric' | 'decimal' | 'email';
+}
+
+const {
+  label,
+  name,
+  type = 'text',
+  value = '',
+  placeholder = '',
+  required = false,
+  min,
+  max,
+  step,
+  autocomplete,
+  inputmode,
+} = Astro.props;
+
+const id = `field-${name}`;
+---
+
+<div class="flex flex-col gap-1.5">
+  <label for={id} class="text-sm font-medium text-slate-700">{label}</label>
+  <input
+    id={id}
+    name={name}
+    type={type}
+    value={value}
+    placeholder={placeholder}
+    required={required}
+    min={min}
+    max={max}
+    step={step}
+    autocomplete={autocomplete}
+    inputmode={inputmode}
+    class="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+  />
+</div>

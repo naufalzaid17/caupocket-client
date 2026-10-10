@@ -1,0 +1,61 @@
+---
+import '../styles/global.css';
+import BottomNav from '../components/features/BottomNav.astro';
+// Astro 5 mengganti nama <ViewTransitions/> menjadi <ClientRouter/>
+// (komponen yang sama) — mencegah kedipan putih antarhalaman (SPA-like).
+import { ClientRouter } from 'astro:transitions';
+
+interface Props {
+  title?: string;
+  activePage?: 'home' | 'goals' | 'new' | 'profile';
+}
+
+const { title = 'Caupocket', activePage = 'home' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="description" content="Caupocket — pencatat keuangan & perencana tabungan pribadi" />
+    <title>{title}</title>
+    <ClientRouter />
+    <!-- PWA: manifest + registrasi service worker (halaman SSR tidak di-inject otomatis). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      import { registerSW } from 'virtual:pwa-register';
+      registerSW({ immediate: true });
+    </script>
+  </head>
+  <body class="bg-slate-100">
+    <!--
+      App shell mobile: tinggi layar dikunci (100dvh) dan scroll dipindah ke
+      container di dalam <main>, sehingga BottomNav berada DI LUAR scroll
+      container dan tidak pernah ikut bergeser saat halaman di-scroll.
+      Lebar tetap dibatasi max-w-md (simulasi layar smartphone) + safe area.
+    -->
+    <div
+      class="mx-auto flex h-dvh max-w-md flex-col overflow-hidden bg-slate-100 shadow-slate-300/50 sm:shadow-2xl"
+    >
+      <main class="hide-scrollbar flex-1 overflow-y-auto overscroll-contain" data-scroll-container>
+        <div class="min-h-full pb-10">
+          <slot />
+        </div>
+      </main>
+      <BottomNav activePage={activePage} />
+    </div>
+    <script>
+      // Reset posisi scroll saat pindah halaman (ClientRouter bisa mempertahankan
+      // elemen main beserta scrollTop-nya saat morphing DOM).
+      document.addEventListener('astro:page-load', () => {
+        document.querySelector('[data-scroll-container]')?.scrollTo({ top: 0 });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+---
+interface Props {
+  /** 0 - 100 */
+  percent: number;
+  tone?: 'indigo' | 'emerald';
+}
+
+const { percent, tone = 'indigo' } = Astro.props;
+const clamped = Math.max(0, Math.min(100, percent));
+const tones: Record<string, string> = {
+  indigo: 'bg-indigo-500',
+  emerald: 'bg-emerald-500',
+};
+---
+
+<div
+  role="progressbar"
+  aria-valuenow={clamped}
+  aria-valuemin="0"
+  aria-valuemax="100"
+  class="h-2.5 w-full overflow-hidden rounded-full bg-slate-100"
+>
+  <div class={`h-full rounded-full transition-[width] ${tones[tone]}`} style={`width: ${clamped}%`}></div>
+</div>

@@ -1,0 +1,197 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import Button from '../../components/ui/Button.astro';
+import { api, ApiError } from '../../services/api';
+import type { Category, Wallet } from '../../services/types';
+import { clearTokenCookie, getToken } from '../../utils/auth';
+
+// Route protection.
+const token = getToken(Astro);
+if (!token) {
+  return Astro.redirect('/login');
+}
+
+let wallets: Wallet[] = [];
+let categories: Category[] = [];
+let errorText: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const type = String(form.get('type') ?? 'EXPENSE');
+  const walletId = String(form.get('wallet_id') ?? '');
+  const categoryId = String(form.get('category_id') ?? '');
+  const amount = Number(form.get('amount') ?? 0);
+  const description = String(form.get('description') ?? '').trim();
+  const trxDate = String(form.get('trx_date') ?? '');
+
+  try {
+    await api.createTransaction(token, {
+      wallet_id: walletId,
+      category_id: categoryId || undefined,
+      type: type === 'INCOME' ? 'INCOME' : 'EXPENSE',
+      amount: Math.round(amount),
+      description: description || undefined,
+      trx_date: trxDate || undefined,
+    });
+    return Astro.redirect('/dashboard');
+  } catch (err) {
+    if (err instanceof ApiError && err.isUnauthorized) {
+      clearTokenCookie(Astro);
+      return Astro.redirect('/login');
+    }
+    errorText = err instanceof ApiError ? err.message : 'Gagal menyimpan transaksi.';
+  }
+}
+
+try {
+  [wallets, categories] = await Promise.all([api.wallets(token), api.categories(token)]);
+} catch (err) {
+  if (err instanceof ApiError && err.isUnauthorized) {
+    clearTokenCookie(Astro);
+    return Astro.redirect('/login');
+  }
+  errorText = 'Gagal memuat dompet & kategori.';
+}
+
+const incomeCategories = categories.filter((c) => c.type === 'INCOME');
+const expenseCategories = categories.filter((c) => c.type === 'EXPENSE');
+const today = new Date().toISOString().slice(0, 10);
+---
+
+<DashboardLayout title="Catat Transaksi — Caupocket" activePage="new">
+  <header class="px-5 pb-2 pt-8">
+    <h1 class="text-xl font-bold tracking-tight text-slate-900">Catat Transaksi</h1>
+    <p class="mt-1 text-sm text-slate-500">Pengeluaran otomatis memvalidasi saldo dompet.</p>
+  </header>
+
+  <form method="POST" action="/transactions/new" class="flex flex-col gap-4 px-4 pt-4">
+    {
+      errorText && (
+        <div
+          role="alert"
+          class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700"
+        >
+          {errorText}
+        </div>
+      )
+    }
+
+    <!-- Segmented control: Pemasukan / Pengeluaran -->
+    <fieldset class="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200/70 p-1" id="type-switcher">
+      <legend class="sr-only">Jenis transaksi</legend>
+      <label
+        class="press flex h-11 cursor-pointer items-center justify-center rounded-xl text-sm font-semibold text-slate-600 transition has-[:checked]:bg-white has-[:checked]:text-rose-600 has-[:checked]:shadow"
+      >
+        <input class="sr-only" type="radio" name="type" value="EXPENSE" checked />
+        Pengeluaran
+      </label>
+      <label
+        class="press flex h-11 cursor-pointer items-center justify-center rounded-xl text-sm font-semibold text-slate-600 transition has-[:checked]:bg-white has-[:checked]:text-emerald-600 has-[:checked]:shadow"
+      >
+        <input class="sr-only" type="radio" name="type" value="INCOME" />
+        Pemasukan
+      </label>
+    </fieldset>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="trx-amount" class="text-sm font-medium text-slate-700">Nominal (Rp)</label>
+      <input
+        id="trx-amount"
+        name="amount"
+        type="number"
+        min="1"
+        required
+        inputmode="numeric"
+        placeholder="25000"
+        class="h-14 w-full rounded-xl border border-slate-200 px-4 text-2xl font-bold tracking-tight outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="trx-wallet" class="text-sm font-medium text-slate-700">Dompet</label>
+      <select
+        id="trx-wallet"
+        name="wallet_id"
+        required
+        class="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+      >
+        {wallets.map((w) => <option value={w.id} selected={w.name === 'Dompet Utama'}>{w.name}</option>)}
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="trx-category" class="text-sm font-medium text-slate-700">Kategori</label>
+      <select
+        id="trx-category"
+        name="category_id"
+        class="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+      >
+        <optgroup label="Pengeluaran" data-type="EXPENSE">
+          {expenseCategories.map((c) => <option value={c.id} selected={c.name === 'Lainnya'}>{c.name}</option>)}
+        </optgroup>
+        <optgroup label="Pemasukan" data-type="INCOME">
+          {incomeCategories.map((c) => <option value={c.id}>{c.name}</option>)}
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="trx-desc" class="text-sm font-medium text-slate-700">Catatan (opsional)</label>
+      <input
+        id="trx-desc"
+        name="description"
+        maxlength="500"
+        placeholder="Makan siang di warung"
+        class="h-12 w-full rounded-xl border border-slate-200 px-4 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="trx-date" class="text-sm font-medium text-slate-700">Tanggal</label>
+      <input
+        id="trx-date"
+        name="trx_date"
+        type="date"
+        value={today}
+        class="h-12 w-full rounded-xl border border-slate-200 px-4 text-base text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+      />
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <a
+        href="/dashboard"
+        class="press inline-flex h-12 flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 active:scale-95"
+      >
+        Batal
+      </a>
+      <div class="flex-[2]">
+        <Button type="submit" size="lg">Simpan</Button>
+      </div>
+    </div>
+  </form>
+</DashboardLayout>
+
+<script>
+  // Sinkronkan pilihan kategori dengan jenis transaksi (Astro Island kecil).
+  const switcher = document.getElementById('type-switcher') as HTMLFieldSetElement | null;
+  const category = document.getElementById('trx-category') as HTMLSelectElement | null;
+
+  function syncCategoryOptions(type: string) {
+    if (!category) return;
+    let firstVisible: HTMLOptionElement | null = null;
+    for (const group of Array.from(category.getElementsByTagName('optgroup'))) {
+      const visible = group.dataset.type === type;
+      group.hidden = !visible;
+      group.disabled = !visible;
+      const option = group.querySelector('option');
+      if (visible && option && !firstVisible) firstVisible = option;
+    }
+    if (firstVisible) category.value = firstVisible.value;
+  }
+
+  switcher?.addEventListener('change', () => {
+    const checked = switcher.querySelector<HTMLInputElement>('input[type="radio"]:checked');
+    syncCategoryOptions(checked?.value ?? 'EXPENSE');
+  });
+  syncCategoryOptions('EXPENSE');
+</script>
