@@ -1,6 +1,7 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import Button from '../../components/ui/Button.astro';
+import ReceiptUploader from '../../components/features/ReceiptUploader.astro';
 import { api, ApiError } from '../../services/api';
 import type { Category, Wallet } from '../../services/types';
 import { clearTokenCookie, getToken } from '../../utils/auth';
@@ -63,6 +64,18 @@ const today = new Date().toISOString().slice(0, 10);
     <h1 class="text-xl font-bold tracking-tight text-slate-900">Catat Transaksi</h1>
     <p class="mt-1 text-sm text-slate-500">Pengeluaran otomatis memvalidasi saldo dompet.</p>
   </header>
+
+  <!-- EPIC V2.1: pindai struk → auto-fill form di bawah. -->
+  <section class="px-4 pt-4">
+    <ReceiptUploader />
+    <div
+      id="ocr-banner"
+      hidden
+      class="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-medium text-emerald-700"
+      role="status"
+    >
+    </div>
+  </section>
 
   <form method="POST" action="/transactions/new" class="flex flex-col gap-4 px-4 pt-4">
     {
@@ -194,4 +207,50 @@ const today = new Date().toISOString().slice(0, 10);
     syncCategoryOptions(checked?.value ?? 'EXPENSE');
   });
   syncCategoryOptions('EXPENSE');
+</script>
+
+<script>
+  // Auto-fill form dari hasil OCR struk (EPIC V2.1).
+  // Listener didaftarkan sekali di level document (aman terhadap dedupe
+  // script module ClientRouter); elemen di-query ulang tiap event.
+  document.addEventListener('receipt:scanned', (event) => {
+    const detail = (event as CustomEvent).detail as {
+      merchant_name?: string | null;
+      total_amount?: number | null;
+      date?: string | null;
+    };
+
+    const banner = document.getElementById('ocr-banner');
+    const amount = document.getElementById('trx-amount') as HTMLInputElement | null;
+    const desc = document.getElementById('trx-desc') as HTMLInputElement | null;
+    const date = document.getElementById('trx-date') as HTMLInputElement | null;
+    const expenseRadio = document.querySelector<HTMLInputElement>(
+      'input[name="type"][value="EXPENSE"]',
+    );
+
+    // Struk = pengeluaran.
+    expenseRadio?.click();
+
+    if (detail.total_amount && amount) {
+      amount.value = String(detail.total_amount);
+      amount.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (detail.merchant_name && desc) {
+      desc.value = detail.merchant_name;
+    }
+    if (detail.date && date && /^\d{4}-\d{2}-\d{2}$/.test(detail.date)) {
+      date.value = detail.date;
+    }
+
+    if (banner) {
+      const parts: string[] = [];
+      if (detail.merchant_name) parts.push(detail.merchant_name);
+      if (detail.total_amount)
+        parts.push(`Rp${detail.total_amount.toLocaleString('id-ID')}`);
+      banner.textContent = parts.length
+        ? `✓ Form terisi otomatis dari struk — ${parts.join(' · ')}. Periksa lalu simpan.`
+        : '✓ Struk terbaca, namun tidak ada data yang bisa diisi otomatis.';
+      banner.hidden = false;
+    }
+  });
 </script>

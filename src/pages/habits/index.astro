@@ -1,0 +1,201 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import ProgressBar from '../../components/ui/ProgressBar.astro';
+import { api, ApiError } from '../../services/api';
+import type { HabitLog, HabitSettings, SavingGoal } from '../../services/types';
+import { clearTokenCookie, getToken } from '../../utils/auth';
+import { formatDate, formatRupiah } from '../../utils/formatters';
+
+// Route protection.
+const token = getToken(Astro);
+if (!token) {
+  return Astro.redirect('/login');
+}
+
+let settings: HabitSettings = { enabled: false, streak_days: 3, reward_amount: 10000 };
+let logs: HabitLog[] = [];
+let goals: SavingGoal[] = [];
+let feedback: { kind: 'success' | 'error'; text: string } | null = null;
+
+// POST /habits: aksi toggle auto-nabung (SSR, token dari cookie httpOnly).
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  if (String(form.get('action') ?? '') === 'toggle') {
+    try {
+      const current = await api.habitSettings(token);
+      settings = await api.updateHabitSettings(token, !current.enabled);
+      feedback = {
+        kind: 'success',
+        text: settings.enabled
+          ? 'Auto-nabung diaktifkan — selamat menabung! 🎉'
+          : 'Auto-nabung dimatikan.',
+      };
+    } catch (err) {
+      if (err instanceof ApiError && err.isUnauthorized) {
+        clearTokenCookie(Astro);
+        return Astro.redirect('/login');
+      }
+      feedback = { kind: 'error', text: err instanceof ApiError ? err.message : 'Gagal menyimpan pengaturan.' };
+    }
+  }
+}
+
+try {
+  if (!feedback) {
+    settings = await api.habitSettings(token);
+  }
+  [logs, goals] = await Promise.all([api.habitLogs(token), api.goals(token)]);
+} catch (err) {
+  if (err instanceof ApiError && err.isUnauthorized) {
+    clearTokenCookie(Astro);
+    return Astro.redirect('/login');
+  }
+  feedback = { kind: 'error', text: 'Gagal memuat data habit.' };
+}
+
+const activeGoal = goals.find((g) => g.status === 'ACTIVE');
+const totalReward = logs.reduce((sum, l) => sum + l.reward_amount, 0);
+---
+
+<DashboardLayout title="Auto-Nabung — Caupocket" activePage="habits">
+  <header class="px-5 pb-2 pt-8">
+    <h1 class="text-xl font-bold tracking-tight text-slate-900">Habit Engine</h1>
+    <p class="mt-1 text-sm text-slate-500">Ubah kebiasaan hemat jadi setoran liburan otomatis.</p>
+  </header>
+
+  {
+    feedback && (
+      <div class="px-4 pt-3">
+        <div
+          role="status"
+          class:list={[
+            'rounded-xl border px-4 py-3 text-sm font-medium',
+            feedback.kind === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700',
+          ]}
+        >
+          {feedback.text}
+        </div>
+      </div>
+    )
+  }
+
+  <!-- Toggle utama -->
+  <section class="px-4 pt-4">
+    <div
+      class:list={[
+        'rounded-2xl border p-4 shadow-sm transition-colors',
+        settings.enabled ? 'border-indigo-200 bg-indigo-50/60' : 'border-slate-200/80 bg-white',
+      ]}
+    >
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="font-semibold text-slate-900">Auto-Nabung Reward</p>
+          <p class="mt-0.5 text-xs text-slate-500">
+            {settings.enabled ? 'Aktif — reward berjalan otomatis' : 'Nonaktif'}
+          </p>
+        </div>
+
+        <form method="POST" action="/habits">
+          <input type="hidden" name="action" value="toggle" />
+          <button
+            type="submit"
+            role="switch"
+            aria-checked={settings.enabled}
+            aria-label={settings.enabled ? 'Matikan auto-nabung' : 'Aktifkan auto-nabung'}
+            class:list={[
+              'press relative inline-flex h-9 w-16 flex-none items-center rounded-full transition-colors active:scale-95',
+              settings.enabled ? 'bg-indigo-600' : 'bg-slate-300',
+            ]}
+          >
+            <span
+              class:list={[
+                'inline-block size-7 transform rounded-full bg-white shadow transition-transform',
+                settings.enabled ? 'translate-x-8' : 'translate-x-1',
+              ]}
+            />
+          </button>
+        </form>
+      </div>
+
+      <div class="mt-4 rounded-xl bg-white/80 p-3 text-sm leading-relaxed text-slate-600">
+        <p>
+          Bertahan <b>{settings.streak_days} hari berturut-turut tanpa pengeluaran</b> → sistem
+          otomatis memindahkan <b>{formatRupiah(settings.reward_amount)}</b> dari Dompet Utama ke
+          target
+          <b>{activeGoal ? ` “${activeGoal.title}”` : ' tabungan aktifmu'}</b>.
+        </p>
+        <p class="mt-1 text-xs text-slate-500">
+          Streak dihitung sejak pengeluaran terakhirmu; satu streak hanya direward satu kali.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Progres target tujuan reward -->
+  {
+    activeGoal && (
+      <section class="px-4 pt-4">
+        <div class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-semibold text-slate-900">Tujuan reward</p>
+            <a href="/goals" class="text-xs font-semibold text-indigo-600">Lihat target</a>
+          </div>
+          <p class="mt-1 text-xs text-slate-500">{activeGoal.title}</p>
+          <div class="mt-3">
+            <ProgressBar
+              percent={Math.min(100, Math.round((activeGoal.current_amount / activeGoal.target_amount) * 100))}
+            />
+            <div class="mt-1.5 flex justify-between text-xs text-slate-500">
+              <span>{formatRupiah(activeGoal.current_amount)}</span>
+              <span>dari {formatRupiah(activeGoal.target_amount)}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  <!-- Riwayat reward -->
+  <section class="px-4 pt-6">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-slate-900">Riwayat Reward</h2>
+      {logs.length > 0 && (
+        <span class="text-xs font-semibold text-emerald-600">+{formatRupiah(totalReward)}</span>
+      )}
+    </div>
+
+    {
+      logs.length === 0 ? (
+        <EmptyState
+          icon="🎯"
+          title="Belum ada reward"
+          description={`Aktifkan auto-nabung dan bertahanlah ${settings.streak_days} hari tanpa pengeluaran — reward pertamamu menunggu.`}
+        />
+      ) : (
+        <ul class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          {logs.map((log) => (
+            <li class="flex items-center gap-3 px-4 py-3">
+              <span class="icon-tile size-11 bg-emerald-50 text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zm0 0h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                </svg>
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900">
+                  Streak {log.streak_days} hari tanpa jajan
+                </p>
+                <p class="truncate text-xs text-slate-500">
+                  {formatDate(log.reward_date)} · ke “{log.goal_title}”
+                </p>
+              </div>
+              <p class="text-sm font-bold text-emerald-600">+{formatRupiah(log.reward_amount)}</p>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </section>
+</DashboardLayout>

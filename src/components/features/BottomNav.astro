@@ -1,6 +1,6 @@
 ---
 interface Props {
-  activePage?: 'home' | 'goals' | 'new' | 'profile';
+  activePage?: 'home' | 'goals' | 'habits' | 'new' | 'profile';
 }
 
 const { activePage = 'home' } = Astro.props;
@@ -19,10 +19,10 @@ const items = [
     path: 'M12 2 3 7v1.5h18V7L12 2ZM4.5 10v7.5H7V10H4.5Zm4 0v7.5h3V10h-3Zm5 0v7.5h3V10h-3Zm4 0v7.5h2V10h-2ZM3 19.5h18V21H3v-1.5Z',
   },
   {
-    id: 'new',
-    href: '/transactions/new',
-    label: 'Catat',
-    path: 'M4 13h6V4H4v9Zm.5-8.5h5v7.5h-5V4.5ZM14 20h6v-9h-6v9Zm.5-8.5h5V19h-5v-7.5Z',
+    id: 'habits',
+    href: '/habits',
+    label: 'Reward',
+    path: 'M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7Zm0 0h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7Z',
   },
   {
     id: 'profile',
@@ -34,7 +34,7 @@ const items = [
 
 // Item FAB di tengah nav (slot ke-3 dari 5) — tombol aksi utama.
 const leftItems = items.filter((i) => i.id === 'home' || i.id === 'goals');
-const rightItems = items.filter((i) => i.id === 'new' || i.id === 'profile');
+const rightItems = items.filter((i) => i.id === 'habits' || i.id === 'profile');
 ---
 
 <!-- Menu bawah: elemen akhir kolom flex app shell (di luar scroll container)

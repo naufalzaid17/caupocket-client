@@ -1,2 +1,2 @@
 /// <reference types="astro/client" />
-/// <reference types="@vite-pwa/astro/client" />
+/// <reference types="vite-plugin-pwa/client" />

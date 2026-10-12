@@ -47,3 +47,21 @@ export interface Transaction {
   goal_id: string | null;
   goal_title: string | null;
 }
+
+export interface HabitSettings {
+  enabled: boolean;
+  streak_days: number;
+  reward_amount: number;
+}
+
+export interface HabitLog {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  goal_title: string;
+  streak_days: number;
+  reward_amount: number;
+  reward_date: string;
+  description: string;
+  created_at: string;
+}
