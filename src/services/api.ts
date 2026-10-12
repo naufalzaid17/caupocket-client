@@ -2,9 +2,9 @@
  * HTTP Client ke API Golang. HANYA untuk dipakai sisi server (frontmatter)
  * agar token tidak pernah bocor ke bundle klien.
  */
-import type { Category, SavingGoal, Transaction, User, Wallet } from './types';
+import type { Category, HabitLog, HabitSettings, SavingGoal, Transaction, User, Wallet } from './types';
 
-const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
+export const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -105,4 +105,12 @@ export const api = {
       method: 'POST',
       body,
     }),
+
+  habitSettings: (token: string) => apiFetch<HabitSettings>('/habits/settings', { token }),
+
+  updateHabitSettings: (token: string, enabled: boolean) =>
+    apiFetch<HabitSettings>('/habits/settings', { token, method: 'PUT', body: { enabled } }),
+
+  habitLogs: (token: string, limit = 20) =>
+    apiFetch<HabitLog[]>(`/habits/logs?limit=${limit}`, { token }),
 };
